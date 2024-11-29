@@ -31,12 +31,12 @@ cartesian_impedance_controller:
       - joint4
       - joint5
       - joint6
-      
-    command_interfaces:
-      - effort
 
     solver:
         error_scale: 0.5
+
+    postural_task: true  # default value: true
+    nullspace_stiffness: 10.0  # default value, used only when postural task is enabled
 
     stiffness:
         trans_x: 500

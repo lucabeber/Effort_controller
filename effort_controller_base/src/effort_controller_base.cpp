@@ -52,7 +52,11 @@ EffortControllerBase::on_init() {
     auto_declare<std::vector<std::string>>("joints",
                                            std::vector<std::string>());
     auto_declare<std::vector<std::string>>("command_interfaces",
-                                           std::vector<std::string>());
+            {hardware_interface::HW_IF_EFFORT});
+    auto_declare<std::vector<std::string>>("state_interfaces",
+            {hardware_interface::HW_IF_POSITION,
+             hardware_interface::HW_IF_VELOCITY,
+             hardware_interface::HW_IF_EFFORT});
     auto_declare<double>("solver.error_scale", 1.0);
     auto_declare<int>("solver.iterations", 1);
     auto_declare<bool>("kuka", false);

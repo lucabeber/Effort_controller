@@ -19,6 +19,8 @@ CartesianImpedanceController::on_init() {
 
   auto_declare<std::string>("ft_sensor_ref_link", "");
   auto_declare<bool>("hand_frame_control", true);
+  auto_declare<bool>("postural_task", true);
+  auto_declare<double>("nullspace_stiffness", 10);
 
   constexpr double default_lin_stiff = 500.0;
   constexpr double default_rot_stiff = 50.0;
@@ -78,7 +80,8 @@ CartesianImpedanceController::on_configure(
   m_cartesian_damping = tmp.asDiagonal();
 
   // Set nullspace stiffness
-  m_null_space_stiffness = 10;
+  m_null_space_stiffness = get_node()->get_parameter("nullspace_stiffness").as_double();
+  RCLCPP_INFO(get_node()->get_logger(), "Postural task stiffness: %f", m_null_space_stiffness);
 
   // Set nullspace damping
   m_null_space_damping = 2 * sqrt(m_null_space_stiffness);
@@ -107,6 +110,13 @@ CartesianImpedanceController::on_configure(
           get_node()->get_name() + std::string("/target_frame"), 3,
           std::bind(&CartesianImpedanceController::targetFrameCallback, this,
                     std::placeholders::_1));
+
+  m_with_postural_task = get_node()->get_parameter("postural_task").as_bool();
+  if(m_with_postural_task) {
+    RCLCPP_INFO(get_node()->get_logger(), "Postural task is activated");
+  } else {
+    RCLCPP_INFO(get_node()->get_logger(), "Postural task is NOT activated");
+  }
 
   RCLCPP_INFO(get_node()->get_logger(), "Finished Impedance on_configure");
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::
@@ -359,7 +369,8 @@ ctrl::VectorND CartesianImpedanceController::computeTorque() {
   // ctrl::VectorND tau_tot(Base::m_joint_number);
   // tau_tot = 0.5 * tau_task + 0.5 * m_tau_old;
   // m_tau_old = tau_task;
-  return tau_task;  // + tau_null;  // + coriolis.data;
+
+  return tau_task + m_with_postural_task * tau_null;  // + coriolis.data;
 }
 // void CartesianImpedanceController::setFtSensorReferenceFrame(const
 // std::string& new_ref)
@@ -401,7 +412,7 @@ void CartesianImpedanceController::targetWrenchCallback(
 
 void CartesianImpedanceController::targetFrameCallback(
     const geometry_msgs::msg::PoseStamped::SharedPtr target) {
-  if (target->header.frame_id != "lbr/link_0")  //!= Base::m_robot_base_link)
+  if (target->header.frame_id != Base::m_robot_base_link)
   {
     auto& clock = *get_node()->get_clock();
     RCLCPP_WARN_THROTTLE(
